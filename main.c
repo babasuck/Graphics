@@ -66,9 +66,9 @@ void rendering() {
         DeleteObject(SelectObject(hdcMem, bmpMem));
         FillRect(hdcMem, &clientRect, hbrBkg);
 
-        putPixel(canvas, 5, 5, RGB(255, 0, 0));
-        putLine(canvas, 0, 0, 100, 100);
-
+        putPixel(canvas, 0, 0, RGB(255, 0, 0));
+        putLine(canvas, -100, -100, 100, 100);
+        putLine(canvas, -100, 100, 100, -100);
         BitBlt(hdc, 0, 0, clientRect.right, clientRect.bottom, hdcMem, 0, 0, SRCCOPY);
         DeleteObject(bmpMem);
         Sleep(14);
