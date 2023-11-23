@@ -1,6 +1,6 @@
 #include "graphic.h"
 #include <math.h>
-
+#include "utils.h"
 
 struct Canvas {
 	HWND hWnd;
@@ -24,30 +24,6 @@ COLORREF putPixel(Canvas* canvas, long x, long y, COLORREF color) {
 	long s_x = canvas->clientRect.right / 2 + x;
 	long s_y = canvas->clientRect.bottom / 2 - y;
 	SetPixel(canvas->hdc, s_x, s_y, color);
-}
-
-int* _interpolate(int i0, int d0, int i1, int d1) {
-	int* values = (int*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (i1 - i0 + 2) * sizeof(int));
-	if (i0 == i1) {
-		values[0] = d0;
-		return values;
-	}
-	double a = (d1 - d0) / (i1 - i0);
-	int d = d0;
-	for (int i = i0; i <= i1; i++) {
-		values[i - i0] = d;
-		d += a;
-	}
-	return values;
-}
-
-void _swapPoints(long* x0, long* y0, long* x1, long* y1) {
-	int t = *x0;
-	*x0 = *x1;
-	*x1 = t;
-	t = *y0;
-	*y0 = *y1;
-	*y1 = t;
 }
 
 // interpolate alghoritm
@@ -101,4 +77,28 @@ void drawTriangle(Canvas* canvas, POINT pt1, POINT pt2, POINT pt3, COLORREF colo
 	drawLine(canvas, pt1, pt2, color);
 	drawLine(canvas, pt1, pt3, color);
 	drawLine(canvas, pt2, pt3, color);
+}
+
+void drawFillTriangle(Canvas* canvas, POINT pt1, POINT pt2, POINT pt3, COLORREF color) {
+	if (pt2.y < pt1.y) _swapPoints(&pt2, &pt1);
+	if (pt3.y < pt1.y) _swapPoints(&pt3, &pt1);
+	if (pt3.y < pt2.y) _swapPoints(&pt3, &pt2);
+
+	drawLine(canvas, pt1, pt2, color);
+	drawLine(canvas, pt1, pt3, color);
+	drawLine(canvas, pt2, pt3, color);
+
+	for (int y = pt1.y; y <= pt3.y; y++) {
+		BOOL second_half = y > pt2.y || pt2.y == pt1.y;
+		int segment_height = second_half ? pt3.y - pt2.y : pt2.y - pt1.y;
+		float alpha = (float)(y - pt1.y) / (pt3.y - pt1.y);
+		float beta = (float)(y - (second_half ? pt2.y : pt1.y)) / segment_height;
+		int ax = pt1.x + (pt3.x - pt1.x) * alpha;
+		int bx = second_half ? pt2.x + (pt3.x - pt2.x) * beta : pt1.x + (pt2.x - pt1.x) * beta;
+
+		if (ax > bx) _swap(&ax, &bx);
+		for (int j = ax; j <= bx; j++) {
+			putPixel(canvas, j, y, color);
+		}
+	}
 }

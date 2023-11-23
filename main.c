@@ -76,15 +76,10 @@ void rendering() {
             SIZE_CHANGED = 0;
         }
         FillRect(hdcMem, &clientRect, hbrBkg);
-        putPixel(canvas, 0, 0, RGB(255, 0, 0));
-        POINT pt1 = { 100, 100 };
         POINT pt2 = {100, -100 };
         POINT tPt1 = { -100, -100 };
         POINT tPt2 = { 0, 100 };
-        drawTriangle(canvas, tPt1, tPt2, pt2, RGB(255, 0, 0));
-        POINT pt_1 = { 0, 0 };
-        POINT pt_2 = { 100, -100 };
-        drawLine(canvas, pt_1, pt_2, RGB(255, 0, 0));
+        drawFillTriangle(canvas, tPt1, tPt2, pt2, RGB(75, 100, 125));
         BitBlt(hdc, 0, 0, clientRect.right, clientRect.bottom, hdcMem, 0, 0, SRCCOPY);
         DeleteObject(bmpMem);
         Sleep(14);
