@@ -57,31 +57,62 @@ LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     }
 }
 
+void renderRoutine(Canvas* canvas) {
+    POINT pt2 = { 100, -100 };
+    POINT tPt1 = { -100, -100 };
+    POINT tPt2 = { 0, 100 };
+    drawFillTriangle(canvas, tPt1, tPt2, pt2, RGB(75, 100, 125));
+}
+
 void rendering() {
     HDC hdc = GetDC(globalHWND);
-    RECT clientRect = { 0 };
-    HDC hdcMem = CreateCompatibleDC(hdc);
-    HBRUSH hbrBkg = (HBRUSH)(COLOR_WINDOW + 1);
-    Canvas* canvas = createCanvas(globalHWND, hdcMem);
+    RECT clientRect;
     GetClientRect(globalHWND, &clientRect);
-    updateRect_canvas(canvas, &clientRect);
+
+    HDC hdcMem = CreateCompatibleDC(hdc);
     HBITMAP bmpMem = CreateCompatibleBitmap(hdc, clientRect.right, clientRect.bottom);
-    DeleteObject(SelectObject(hdcMem, bmpMem));
-    while (1) {
+    SelectObject(hdcMem, bmpMem);
+    HBRUSH hbrBkg = CreateSolidBrush(GetSysColor(COLOR_WINDOW));
+
+    Canvas* canvas = createCanvas(globalHWND, hdcMem);
+
+    // Инициализация таймера для FPS
+    LARGE_INTEGER frequency;
+    QueryPerformanceFrequency(&frequency);
+    LARGE_INTEGER t1, t2;
+    double elapsedTime;
+    TCHAR fpsString[50];
+
+    BOOL running = TRUE;
+    while (running) {
+        QueryPerformanceCounter(&t1);
+
         if (SIZE_CHANGED) {
             GetClientRect(globalHWND, &clientRect);
             updateRect_canvas(canvas, &clientRect);
-            HBITMAP bmpMem = CreateCompatibleBitmap(hdc, clientRect.right, clientRect.bottom);
-            DeleteObject(SelectObject(hdcMem, bmpMem));
-            SIZE_CHANGED = 0;
+            DeleteObject(bmpMem);
+            bmpMem = CreateCompatibleBitmap(hdc, clientRect.right, clientRect.bottom);
+            SelectObject(hdcMem, bmpMem);
+            SIZE_CHANGED = FALSE;
         }
+
         FillRect(hdcMem, &clientRect, hbrBkg);
-        POINT pt2 = {100, -100 };
-        POINT tPt1 = { -100, -100 };
-        POINT tPt2 = { 0, 100 };
-        drawFillTriangle(canvas, tPt1, tPt2, pt2, RGB(75, 100, 125));
+        renderRoutine(canvas);
+
+        // Вычисление и отображение FPS
+        QueryPerformanceCounter(&t2);
+        elapsedTime = (t2.QuadPart - t1.QuadPart) * 1000.0 / frequency.QuadPart;
+        int frameRate = (int)(1000.0 / elapsedTime + 0.5);
+        wsprintf(fpsString, TEXT("FPS: %d"), frameRate);
+        SetTextColor(hdcMem, RGB(0, 0, 0));
+        SetBkMode(hdcMem, TRANSPARENT);
+        TextOut(hdcMem, 10, 10, fpsString, lstrlen(fpsString));
+
         BitBlt(hdc, 0, 0, clientRect.right, clientRect.bottom, hdcMem, 0, 0, SRCCOPY);
-        DeleteObject(bmpMem);
-        Sleep(14);
     }
+
+    DeleteObject(hbrBkg);
+    DeleteObject(bmpMem);
+    DeleteDC(hdcMem);
+    ReleaseDC(globalHWND, hdc);
 }
