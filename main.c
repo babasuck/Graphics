@@ -3,6 +3,7 @@
 
 // Global entry for HWND 
 HWND globalHWND;
+BOOL SIZE_CHANGED = 0;
 
 LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 void rendering();
@@ -48,6 +49,9 @@ LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         break;
     case WM_ERASEBKGND:
         return 1;
+    case WM_SIZING:
+        SIZE_CHANGED = 1;
+        return DefWindowProc(hWnd, msg, wParam, lParam);
     default:
         return DefWindowProc(hWnd, msg, wParam, lParam);
     }
@@ -59,16 +63,28 @@ void rendering() {
     HDC hdcMem = CreateCompatibleDC(hdc);
     HBRUSH hbrBkg = (HBRUSH)(COLOR_WINDOW + 1);
     Canvas* canvas = createCanvas(globalHWND, hdcMem);
+    GetClientRect(globalHWND, &clientRect);
+    updateRect_canvas(canvas, &clientRect);
+    HBITMAP bmpMem = CreateCompatibleBitmap(hdc, clientRect.right, clientRect.bottom);
+    DeleteObject(SelectObject(hdcMem, bmpMem));
     while (1) {
-        GetClientRect(globalHWND, &clientRect);
-        updateRect_canvas(canvas);
-        HBITMAP bmpMem = CreateCompatibleBitmap(hdc, clientRect.right, clientRect.bottom);
-        DeleteObject(SelectObject(hdcMem, bmpMem));
+        if (SIZE_CHANGED) {
+            GetClientRect(globalHWND, &clientRect);
+            updateRect_canvas(canvas, &clientRect);
+            HBITMAP bmpMem = CreateCompatibleBitmap(hdc, clientRect.right, clientRect.bottom);
+            DeleteObject(SelectObject(hdcMem, bmpMem));
+            SIZE_CHANGED = 0;
+        }
         FillRect(hdcMem, &clientRect, hbrBkg);
-
         putPixel(canvas, 0, 0, RGB(255, 0, 0));
-        putLine(canvas, -100, -100, 100, 100);
-        putLine(canvas, -100, 100, 100, -100);
+        POINT pt1 = { 100, 100 };
+        POINT pt2 = {100, -100 };
+        POINT tPt1 = { -100, -100 };
+        POINT tPt2 = { 0, 100 };
+        drawTriangle(canvas, tPt1, tPt2, pt2, RGB(255, 0, 0));
+        POINT pt_1 = { 0, 0 };
+        POINT pt_2 = { 100, -100 };
+        drawLine(canvas, pt_1, pt_2, RGB(255, 0, 0));
         BitBlt(hdc, 0, 0, clientRect.right, clientRect.bottom, hdcMem, 0, 0, SRCCOPY);
         DeleteObject(bmpMem);
         Sleep(14);
