@@ -1,2 +1,2 @@
 # Graphics
-Graphics lib for Windows using only SetPixel func.
+Simple gdi renderer
