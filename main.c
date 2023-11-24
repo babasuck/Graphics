@@ -3,6 +3,7 @@
 
 // Global entry for HWND 
 HWND globalHWND;
+HDC backDC;
 BOOL SIZE_CHANGED = 0;
 
 LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -37,6 +38,7 @@ int WinMain(
 LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     PAINTSTRUCT ps = { 0 };
     HDC hdc;
+    static RECT clientRect;
     switch (msg) {
     case WM_CREATE:
         break;
@@ -45,6 +47,8 @@ LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         break;
     case WM_PAINT:
         hdc = BeginPaint(hWnd, &ps);
+        //GetClientRect(hWnd, &clientRect);
+   
         EndPaint(hWnd, &ps);
         break;
     case WM_ERASEBKGND:
@@ -58,10 +62,24 @@ LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 void renderRoutine(Canvas* canvas) {
-    POINT pt2 = { 100, -100 };
-    POINT tPt1 = { -100, -100 };
-    POINT tPt2 = { 0, 100 };
-    drawFillTriangle(canvas, tPt1, tPt2, pt2, RGB(75, 100, 125));
+    srand((unsigned int)time(NULL)); // Инициализация генератора случайных чисел
+
+    POINT pt0 = { 0, 0 }; // Начальная точка в центре
+    POINT ptRandom;       // Случайная точка
+
+    RECT clientRect = canvas_getClientRect(canvas);
+    // Рисуем 1000 случайных линий
+    for (int i = 0; i < 10; ++i) {
+        // Генерируем случайные координаты для конечной точки
+        ptRandom.x = rand() % (clientRect.right) - (clientRect.right / 2);
+        ptRandom.y = rand() % (clientRect.bottom) - (clientRect.bottom / 2);
+
+        // Выбираем случайный цвет для каждой линии
+        COLORREF randomColor = RGB(rand() % 256, rand() % 256, rand() % 256);
+
+        // Рисуем линию
+        drawLine(canvas, pt0, ptRandom, randomColor);
+    }
 }
 
 void rendering() {
@@ -69,12 +87,12 @@ void rendering() {
     RECT clientRect;
     GetClientRect(globalHWND, &clientRect);
 
-    HDC hdcMem = CreateCompatibleDC(hdc);
+    backDC = CreateCompatibleDC(hdc);
     HBITMAP bmpMem = CreateCompatibleBitmap(hdc, clientRect.right, clientRect.bottom);
-    SelectObject(hdcMem, bmpMem);
+    DeleteObject(SelectObject(backDC, bmpMem));
     HBRUSH hbrBkg = CreateSolidBrush(GetSysColor(COLOR_WINDOW));
+    Canvas* canvas = createCanvas(globalHWND, backDC);
 
-    Canvas* canvas = createCanvas(globalHWND, hdcMem);
 
     // Инициализация таймера для FPS
     LARGE_INTEGER frequency;
@@ -90,13 +108,12 @@ void rendering() {
         if (SIZE_CHANGED) {
             GetClientRect(globalHWND, &clientRect);
             updateRect_canvas(canvas, &clientRect);
-            DeleteObject(bmpMem);
             bmpMem = CreateCompatibleBitmap(hdc, clientRect.right, clientRect.bottom);
-            SelectObject(hdcMem, bmpMem);
-            SIZE_CHANGED = FALSE;
+            DeleteObject(SelectObject(backDC, bmpMem));
+            SIZE_CHANGED = 0;
         }
 
-        FillRect(hdcMem, &clientRect, hbrBkg);
+        FillRect(backDC, &clientRect, hbrBkg);
         renderRoutine(canvas);
 
         // Вычисление и отображение FPS
@@ -104,15 +121,14 @@ void rendering() {
         elapsedTime = (t2.QuadPart - t1.QuadPart) * 1000.0 / frequency.QuadPart;
         int frameRate = (int)(1000.0 / elapsedTime + 0.5);
         wsprintf(fpsString, TEXT("FPS: %d"), frameRate);
-        SetTextColor(hdcMem, RGB(0, 0, 0));
-        SetBkMode(hdcMem, TRANSPARENT);
-        TextOut(hdcMem, 10, 10, fpsString, lstrlen(fpsString));
-
-        BitBlt(hdc, 0, 0, clientRect.right, clientRect.bottom, hdcMem, 0, 0, SRCCOPY);
+        SetTextColor(backDC, RGB(0, 0, 0));
+        SetBkMode(backDC, TRANSPARENT);
+        TextOut(backDC, 10, 10, fpsString, lstrlen(fpsString));
+        BitBlt(hdc, 0, 0, clientRect.right, clientRect.bottom, backDC, 0, 0, SRCCOPY);
     }
 
     DeleteObject(hbrBkg);
     DeleteObject(bmpMem);
-    DeleteDC(hdcMem);
+    DeleteDC(backDC);
     ReleaseDC(globalHWND, hdc);
 }
